@@ -1,0 +1,28 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_DB: DemoDb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 474bNM47   # ← 换成你自己的密码
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend               # 指向后端代码目录
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      DATABASE_URL: postgres://postgres:yourpassword@db:5432/DemoDb?sslmode=require
+      PUBKEY_PATH: /app/pubkey.pem
+    ports:
+      - "5000:5000"                    # 内部 5000 暴露到宿主 5000
+    depends_on:
+      - db
+
+volumes:
+  db_data:
