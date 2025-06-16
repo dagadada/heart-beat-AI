@@ -16,6 +16,11 @@ DB_CONFIG = {
 def get_db():
     return psycopg2.connect(**DB_CONFIG)
 
+# 1. 根路径也做检验
+@app.route('/', methods=['GET'])
+def root_check():
+    return check_user()
+
 @app.route('/register_user', methods=['POST'])
 def register_user():
     username = request.form.get('username')
@@ -25,21 +30,23 @@ def register_user():
         print("❌ 用户名为空")
         return jsonify({'status': 'error', 'msg': '用户名为空'}), 400
 
+    conn = None
+    cur  = None
     try:
         conn = get_db()
-        cur = conn.cursor()
+        cur  = conn.cursor()
 
-        # 检查是否已存在用户
         cur.execute('SELECT user_id FROM "user" WHERE user_name = %s', (username,))
         if cur.fetchone():
             print(f"⚠️ 用户已存在：{username}")
             return jsonify({'status': 'exists', 'msg': '用户已存在'})
 
-        # 插入新用户
-        cur.execute('INSERT INTO "user" (user_name, user_create_time) VALUES (%s, NOW())', (username,))
+        cur.execute(
+            'INSERT INTO "user" (user_name, user_create_time) VALUES (%s, NOW())',
+            (username,)
+        )
         conn.commit()
         print(f"✅ 成功插入用户：{username}")
-
         return jsonify({'status': 'success'})
 
     except Exception as e:
@@ -47,46 +54,51 @@ def register_user():
         return jsonify({'status': 'error', 'msg': str(e)}), 500
 
     finally:
-        cur.close()
-        conn.close()
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
 @app.route('/check_user', methods=['GET'])
 def check_user():
     username = request.args.get('username')
     print(f"📥 收到请求：/check_user?username={username}")
 
+    if not username:
+        print("❌ 请求缺少 username 参数")
+        return jsonify({'status': 'error', 'msg': 'username 不能为空'}), 400
+
+    conn = None
+    cur  = None
     try:
         conn = get_db()
-        cur = conn.cursor()
+        cur  = conn.cursor()
 
         cur.execute('SELECT user_id FROM "user" WHERE user_name = %s', (username,))
         row = cur.fetchone()
-
         if not row:
             print(f"❌ 用户 '{username}' 不存在")
             return jsonify({'status': 'not_found'})
 
         user_id = row[0]
-        print(f"✅ 用户 '{username}' 的 user_id = {user_id}")
+        print(f"✅ 找到 user_id = {user_id}")
 
         cur.execute('SELECT COUNT(*) FROM model WHERE user_user_id = %s', (user_id,))
         model_count = cur.fetchone()[0]
-        print(f"🔎 用户模型数量 = {model_count}")
-
         status = 'has_model' if model_count > 0 else 'no_model'
-        print(f"🚀 返回状态：{status}")
-
+        print(f"🔎 模型数量 = {model_count}，返回 status = {status}")
         return jsonify({'status': status})
 
     except Exception as e:
-        print(f"🔥 发生错误：{e}")
+        print(f"🔥 查询错误：{e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
     finally:
-        cur.close()
-        conn.close()
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
-
-# ✅ 添加主程序启动
 if __name__ == '__main__':
     print("✅ Flask 正在运行于 http://0.0.0.0:5000")
     app.run(host='0.0.0.0', port=5000, debug=True)
