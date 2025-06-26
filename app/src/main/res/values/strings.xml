@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">用“心”解锁</string>
+<!--    <string name="app_name"><![CDATA[用<font color="#FFC0CB">心</font>解锁]]></string>-->
+
+    <!-- 添加其他字符串资源 -->
+</resources>
